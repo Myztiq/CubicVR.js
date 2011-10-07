@@ -184,14 +184,16 @@ catch (e) {
             0.0, 0.0, 0.0, 1.0];
 
   /* Core Init, single context only at the moment */
-  GLCore.init = function(gl_in, vs_in, fs_in) {
+  GLCore.init = function(gl_in, vs, fs) {
     var gl,
+      vs_in,
+      fs_in,
       util = CubicVR.util,
       i;
 
-    if (vs_in && fs_in) {
-      vs_in = util.getScriptContents(vs_in);
-      fs_in = util.getScriptContents(fs_in);
+    if (vs && fs) {
+      vs_in = util.getScriptContents(vs);
+      fs_in = util.getScriptContents(fs);
     } else {  // default shader handler if no custom override specified
       // See if they have been embeded in js
       if (CubicVR.CubicVRCoreVS && CubicVR.CubicVRCoreFS) {
@@ -204,37 +206,32 @@ catch (e) {
     }
 
     if (gl_in === undef) {  // no canvas? no problem!
-      gl_in = document.createElement("canvas");
-      if (!gl) gl = gl_in.getContext("experimental-webgl",{antialias:base.features.antiAlias});
-      GLCore.gl = gl;
       
+      var autoContext, autoCanvas = document.createElement("canvas");
+      document.body.appendChild(autoCanvas);
+      var autoContext = GLCore.init( autoCanvas, vs, fs );
+
       if (GLCore.fixed_size !== null) {
         GLCore.width = GLCore.fixed_size[0];
         GLCore.height = GLCore.fixed_size[1];
-        GLCore.resizeElement(gl_in,GLCore.width,GLCore.height);
-      } else {
-
-
-        // document.body.style.margin = "0px";        
-        // document.body.style.padding = "0px";        
-        GLCore.addResizeable(gl_in);
-        
-        if (GLCore.canvasSizeFactor!==1 && gl_in.getContext!==undef) {
-          var nw = Math.round(window.innerWidth*GLCore.canvasSizeFactor), nh = Math.round(window.innerHeight*GLCore.canvasSizeFactor);
-          GLCore.resizeElement(gl_in,nw,nh);        
-          gl_in.style.top = (window.innerHeight/2-nh/2) + "px";
-          gl_in.style.left = (window.innerWidth/2-nw/2) + "px";
-//            gl_in.style.top="0px";
-//            gl_in.style.left="0px";
-//            gl_in.style.width="100%";
-//           gl_in.style.height="100%";
-          gl_in.style.position = "absolute";
-        } else {
-          GLCore.resizeElement(gl_in,window.innerWidth,window.innerHeight);        
-        }
+        GLCore.resizeElement(autoCanvas,GLCore.width,GLCore.height);
       }
-      
-      document.body.appendChild(gl_in);
+      else {
+        GLCore.addResizeable(autoCanvas);
+        
+        if (GLCore.canvasSizeFactor!==1 && autoCanvas.getContext!==undef) {
+          var nw = Math.round(window.innerWidth*GLCore.canvasSizeFactor), nh = Math.round(window.innerHeight*GLCore.canvasSizeFactor);
+          GLCore.resizeElement(autoCanvas,nw,nh);        
+          autoCanvas.style.top = (window.innerHeight/2-nh/2) + "px";
+          autoCanvas.style.left = (window.innerWidth/2-nw/2) + "px";
+          autoCanvas.style.position = "absolute";
+        }
+        else {
+          GLCore.resizeElement(autoCanvas,window.innerWidth,window.innerHeight);        
+        }
+      } //if
+
+      return autoContext;
     }
     
     if (gl_in.getContext !== undef && gl_in.width !== undef && gl_in.height !== undef)
@@ -263,7 +260,10 @@ catch (e) {
       gl = gl_in;      
     }
 
-    GLCore.gl = gl;
+    var context = new GLContext( gl_in, gl );
+    if ( !GLCore.context ) {
+      GLCore.switchContext( context );
+    }
     GLCore.CoreShader_vs = vs_in;
     GLCore.CoreShader_fs = fs_in;
 
@@ -314,7 +314,34 @@ catch (e) {
       GLCore.resize_active = true;
     }
     
-    return gl;
+    return context;
+  };
+
+  function GLContext( canvas, gl ) {
+    var that = this;
+
+    Object.defineProperty( this, "gl", {
+      get: function() { return gl; }
+    });
+
+    this.swapOut = function() {
+    };
+
+    this.swapIn = function() {
+      GLCore.context = that;
+      GLCore.gl = gl;
+    };
+
+    Object.defineProperty( this, "canvas", {
+      get: function() { return canvas; }
+    });
+  } //GLContext
+
+  GLCore.switchContext = function( context ) {
+    if ( GLCore.context ) {
+      GLCore.context.swapOut();
+    }
+    context.swapIn();
   };
   
   GLCore.addResizeable = function(e) {
@@ -432,7 +459,7 @@ var initCubicVR = function( options, vs, fs ) {
     } //if
   }
 
-  if ( typeof(options) === "object" ) {
+  if ( options && typeof(options) === "object" ) {
     if (options.getContext) {
       canvas = options;
     } else {
@@ -446,6 +473,7 @@ var initCubicVR = function( options, vs, fs ) {
     }
     canvas = document.getElementById(options);
   }
+
   return GLCore.init(canvas, vs, fs);
   
 }; //initCubicVR
@@ -459,6 +487,7 @@ var extend = {
   setFixedSize: GLCore.setFixedSize,
   setCanvasSizeFactor: GLCore.setCanvasSizeFactor,
   getCanvas: GLCore.getCanvas,
+  switchContext: GLCore.switchContext,
   enums: enums,
   IdentityMatrix: cubicvr_identity,
   Textures: base.Textures,
