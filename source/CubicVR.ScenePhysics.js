@@ -813,6 +813,8 @@ CubicVR.RegisterModule("ScenePhysics",function(base) {
     bind: function(obj) {
       if (obj instanceof CubicVR.RigidBody) {
         this.bindRigidBody(obj);
+      }else{
+          console.log("Tried to bind object not of type RigidBody");
       }
     },
     remove: function(obj) {

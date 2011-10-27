@@ -96,6 +96,34 @@ CubicVR.RegisterModule("RigidVehicle", function (base) {
         this.m_vehicle.getWheelTransformWS(i).getOpenGLMatrix(this.wheels[i].wheelObj.tMatrix);
         //        this.wheels[i].wheelObj.setMatrix(m);
       }
+      var uquat = new CubicVR.Quaternion();
+      var utrans = this.m_vehicle.getChassisWorldTransform();
+      var origin = utrans.getOrigin();
+      if (origin.x != origin.x) {
+        // Nan?
+        console.log("origin is NaN");
+      } else {
+        this.sceneObject.position[0] = origin.x();
+        this.sceneObject.position[1] = origin.y();
+        this.sceneObject.position[2] = origin.z();
+      }
+
+      var quat_rotation = utrans.getRotation();
+      uquat.x = quat_rotation.x();
+      uquat.y = quat_rotation.y();
+      uquat.z = quat_rotation.z();
+      uquat.w = quat_rotation.w();
+
+      if (uquat.x != uquat.x) {
+        // Nan?
+        console.log("rotation is NaN");
+      } else {
+        var rotation = uquat.toEuler();
+        this.sceneObject.rotation[0] = rotation[0];
+        this.sceneObject.rotation[1] = rotation[1];
+        this.sceneObject.rotation[2] = rotation[2];
+      }
+
     },
     setEngineForce: function (engineForce) {
       this.gEngineForce = engineForce;
